@@ -27,10 +27,6 @@ class BiometricService {
     try {
       final bool didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Gunakan sidik jari atau wajah untuk login',
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-          stickyAuth: true,
-        ),
       );
       return didAuthenticate;
     } catch (e) {

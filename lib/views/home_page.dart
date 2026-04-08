@@ -39,8 +39,28 @@ class HomePage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              ref.read(authControllerProvider.notifier).logout();
+            onPressed: () async {
+              final bool? confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Konfirmasi Logout'),
+                  content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Batal'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Keluar', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                ref.read(authControllerProvider.notifier).logout();
+              }
             },
           )
         ],
@@ -59,35 +79,39 @@ class HomePage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade800,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        ),
+                        icon: const Icon(Icons.login, size: 20),
+                        label: const Text('Masuk', style: TextStyle(fontSize: 14)),
+                        onPressed: attendanceState.isLoading
+                            ? null
+                            : () {
+                                ref.read(attendanceControllerProvider.notifier).checkIn();
+                              },
                       ),
-                      icon: const Icon(Icons.login),
-                      label: const Text('Absen Masuk'),
-                      onPressed: attendanceState.isLoading
-                          ? null
-                          : () {
-                              ref.read(attendanceControllerProvider.notifier).checkIn();
-                            },
                     ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade800,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade800,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        ),
+                        icon: const Icon(Icons.logout, size: 20),
+                        label: const Text('Pulang', style: TextStyle(fontSize: 14)),
+                        onPressed: attendanceState.isLoading
+                            ? null
+                            : () {
+                                ref.read(attendanceControllerProvider.notifier).checkOut();
+                              },
                       ),
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Absen Pulang'),
-                      onPressed: attendanceState.isLoading
-                          ? null
-                          : () {
-                              ref.read(attendanceControllerProvider.notifier).checkOut();
-                            },
                     ),
                   ],
                 ),
@@ -118,8 +142,8 @@ class HomePage extends ConsumerWidget {
                       leading: const CircleAvatar(child: Icon(Icons.history)),
                       title: Text(att.date),
                       subtitle: Text(
-                        'In: ${att.checkIn != null ? formatTime.format(att.checkIn!) : '-'}  |  '
-                        'Out: ${att.checkOut != null ? formatTime.format(att.checkOut!) : '-'}',
+                        'Masuk: ${att.checkIn != null ? formatTime.format(att.checkIn!) : '-'}  |  '
+                        'Pulang: ${att.checkOut != null ? formatTime.format(att.checkOut!) : '-'}',
                       ),
                       trailing: att.checkOut != null
                           ? const Icon(Icons.check_circle, color: Colors.green)

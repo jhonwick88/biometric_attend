@@ -57,7 +57,9 @@ class AuthController extends AsyncNotifier<void> {
 
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
-    await ref.read(biometricServiceProvider).clearCredentials();
+    // Kita tidak menghapus credential di sini agar pengguna
+    // tetap bisa menggunakan fitur login dengan sidik jari setelah logout.
+    // await ref.read(biometricServiceProvider).clearCredentials();
   }
 }
 

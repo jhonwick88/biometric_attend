@@ -27,18 +27,18 @@ class AttendanceController extends AsyncNotifier<void> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final user = ref.read(authStateProvider).value;
-      if (user == null) throw Exception("User belum login");
+      if (user == null) throw "User belum login";
 
       final repo = ref.read(attendanceRepositoryProvider);
       
       // 1. Cek limit 1 hari
       bool alreadyCheckIn = await repo.alreadyCheckIn(user.uid);
-      if (alreadyCheckIn) throw Exception("Anda sudah absen masuk hari ini!");
+      if (alreadyCheckIn) throw "Anda sudah absen masuk hari ini!";
 
       // 2. Validate Biometric
       final bioService = ref.read(biometricServiceProvider);
       bool authResult = await bioService.authenticate();
-      if (!authResult) throw Exception("Validasi biometrik gagal / dibatalkan");
+      if (!authResult) throw "Validasi biometrik gagal / dibatalkan";
 
       // 3. Validate Location
       final locService = ref.read(locationServiceProvider);
@@ -54,22 +54,22 @@ class AttendanceController extends AsyncNotifier<void> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final user = ref.read(authStateProvider).value;
-      if (user == null) throw Exception("User belum login");
+      if (user == null) throw "User belum login";
 
       final repo = ref.read(attendanceRepositoryProvider);
       
       // 1. Pastikan sudah check-in
       bool alreadyCheckIn = await repo.alreadyCheckIn(user.uid);
-      if (!alreadyCheckIn) throw Exception("Anda belum absen masuk hari ini!");
+      if (!alreadyCheckIn) throw "Anda belum absen masuk hari ini!";
 
       // 2. Cek limit check out
       bool alreadyCheckOut = await repo.alreadyCheckOut(user.uid);
-      if (alreadyCheckOut) throw Exception("Anda sudah absen pulang hari ini!");
+      if (alreadyCheckOut) throw "Anda sudah absen pulang hari ini!";
 
       // 3. Validate Biometric
       final bioService = ref.read(biometricServiceProvider);
       bool authResult = await bioService.authenticate();
-      if (!authResult) throw Exception("Validasi biometrik gagal / dibatalkan");
+      if (!authResult) throw "Validasi biometrik gagal / dibatalkan";
 
       // 4. Validate Location
       final locService = ref.read(locationServiceProvider);
