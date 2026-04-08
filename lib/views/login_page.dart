@@ -74,6 +74,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         : const Text('Login'),
                   ),
                 ),
+                const SizedBox(height: 16),
+                IconButton(
+                  iconSize: 50,
+                  onPressed: authState.isLoading
+                      ? null
+                      : () {
+                          ref.read(authControllerProvider.notifier).loginWithBiometrics();
+                        },
+                  icon: const Icon(Icons.fingerprint, color: Colors.blueAccent),
+                ),
+                const Text('Login cepat dengan Sidik Jari'),
+                const SizedBox(height: 8),
                 TextButton(
                   onPressed: () {
                     Navigator.push(
