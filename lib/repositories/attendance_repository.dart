@@ -34,13 +34,14 @@ class AttendanceRepository {
     return data['checkOut'] != null;
   }
 
-  Future<void> checkIn(String uid, Position position) async {
+  Future<void> checkIn(String uid, String email, Position position) async {
     final today = _getTodayString();
     
     AttendanceModel attendance = AttendanceModel(
       uid: uid,
+      userEmail: email,
       date: today,
-      checkIn: DateTime.now(), // will be server timestamp in map
+      checkIn: DateTime.now(),
       location: AttendanceLocation(lat: position.latitude, lng: position.longitude)
     );
 
@@ -63,7 +64,7 @@ class AttendanceRepository {
         'checkOut': FieldValue.serverTimestamp(),
       });
     } else {
-      throw Exception("Data check-in tidak ditemukan untuk checkout");
+      throw "Data check-in tidak ditemukan untuk checkout";
     }
   }
 
@@ -71,6 +72,17 @@ class AttendanceRepository {
     return _firestore
         .collection('attendance')
         .where('uid', isEqualTo: uid)
+        .orderBy('checkIn', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => AttendanceModel.fromMap(doc.data(), doc.id))
+            .toList());
+  }
+
+  // Admin: Get all attendance history
+  Stream<List<AttendanceModel>> getAllAttendanceHistory() {
+    return _firestore
+        .collection('attendance')
         .orderBy('checkIn', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs

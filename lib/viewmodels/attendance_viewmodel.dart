@@ -45,8 +45,8 @@ class AttendanceController extends AsyncNotifier<void> {
       await locService.validateLocation();
       final position = await locService.getCurrentPosition();
 
-      // 4. Save to DB
-      await repo.checkIn(user.uid, position!);
+      // 4. Save to DB (Including Email)
+      await repo.checkIn(user.uid, user.email ?? '', position!);
     });
   }
 

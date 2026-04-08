@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user_model.dart';
 import '../repositories/auth_repository.dart';
 import '../services/biometric_service.dart';
 
@@ -8,7 +9,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository();
 });
 
-final authStateProvider = StreamProvider<User?>((ref) {
+final authStateProvider = StreamProvider<fb.User?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
 });
 
@@ -64,3 +65,9 @@ class AuthController extends AsyncNotifier<void> {
 }
 
 final authControllerProvider = AsyncNotifierProvider<AuthController, void>(AuthController.new);
+
+final userProfileProvider = FutureProvider<UserModel?>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return null;
+  return ref.read(authRepositoryProvider).getUserData(user.uid);
+});

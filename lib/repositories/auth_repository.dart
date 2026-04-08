@@ -18,6 +18,7 @@ class AuthRepository {
       UserModel newUser = UserModel(
         uid: cred.user!.uid,
         email: email,
+        username: email.split('@').first,
         biometricEnabled: true, // Defaulting true for simplicity
         createdAt: DateTime.now(),
       );

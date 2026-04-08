@@ -8,8 +8,8 @@ class AttendanceLocation {
 
   factory AttendanceLocation.fromMap(Map<String, dynamic> map) {
     return AttendanceLocation(
-      lat: map['lat'] ?? 0.0,
-      lng: map['lng'] ?? 0.0,
+      lat: (map['lat'] as num?)?.toDouble() ?? 0.0,
+      lng: (map['lng'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -24,6 +24,7 @@ class AttendanceLocation {
 class AttendanceModel {
   final String? id;
   final String uid;
+  final String? userEmail; // Added email for admin overview
   final String date;
   final DateTime? checkIn;
   final DateTime? checkOut;
@@ -32,6 +33,7 @@ class AttendanceModel {
   AttendanceModel({
     this.id,
     required this.uid,
+    this.userEmail,
     required this.date,
     this.checkIn,
     this.checkOut,
@@ -42,6 +44,7 @@ class AttendanceModel {
     return AttendanceModel(
       id: documentId,
       uid: map['uid'] ?? '',
+      userEmail: map['userEmail'],
       date: map['date'] ?? '',
       checkIn: (map['checkIn'] as Timestamp?)?.toDate(),
       checkOut: (map['checkOut'] as Timestamp?)?.toDate(),
@@ -52,6 +55,7 @@ class AttendanceModel {
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
+      'userEmail': userEmail,
       'date': date,
       'checkIn': checkIn != null ? Timestamp.fromDate(checkIn!) : FieldValue.serverTimestamp(),
       'checkOut': checkOut != null ? Timestamp.fromDate(checkOut!) : null,

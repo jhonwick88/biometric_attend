@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../viewmodels/config_viewmodel.dart';
 import 'register_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -17,6 +18,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
 Widget build(BuildContext context) {
   final authState = ref.watch(authControllerProvider);
+  final configAsync = ref.watch(appConfigProvider);
 
   ref.listen<AsyncValue>(
     authControllerProvider,
@@ -179,15 +181,17 @@ Widget build(BuildContext context) {
 
                 const SizedBox(height: 16),
 
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RegisterPage()),
-                    );
-                  },
-                  child: const Text('Belum punya akun? Register'),
-                )
+                configAsync.asData?.value?.showRegister == true 
+                  ? TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RegisterPage()),
+                        );
+                      },
+                      child: const Text('Belum punya akun? Register'),
+                    )
+                  : const SizedBox.shrink(),
               ],
             ),
           ),
