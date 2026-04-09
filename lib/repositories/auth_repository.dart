@@ -19,7 +19,7 @@ class AuthRepository {
         uid: cred.user!.uid,
         email: email,
         username: email.split('@').first,
-        biometricEnabled: true, // Defaulting true for simplicity
+        biometricEnabled: false, // Defaulting false, user will opt-in later
         createdAt: DateTime.now(),
       );
 
@@ -55,6 +55,14 @@ class AuthRepository {
     }
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Gagal mengirim email reset password');
+    }
+  }
+
   Future<void> logout() async {
     await _auth.signOut();
   }
@@ -65,5 +73,12 @@ class AuthRepository {
       return UserModel.fromMap(doc.data() as Map<String, dynamic>, uid);
     }
     return null;
+  }
+
+  Future<void> updateUser(UserModel user) async {
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .set(user.toMap(), SetOptions(merge: true));
   }
 }

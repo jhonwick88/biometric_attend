@@ -5,9 +5,10 @@ import '../repositories/attendance_repository.dart';
 import '../services/biometric_service.dart';
 import '../services/location_service.dart';
 import 'auth_viewmodel.dart';
+import 'config_viewmodel.dart';
+import '../models/config_model.dart';
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) => AttendanceRepository());
-final biometricServiceProvider = Provider<BiometricService>((ref) => BiometricService());
 final locationServiceProvider = Provider<LocationService>((ref) => LocationService());
 
 final attendanceHistoryProvider = StreamProvider.autoDispose<List<AttendanceModel>>((ref) {
@@ -42,7 +43,19 @@ class AttendanceController extends AsyncNotifier<void> {
 
       // 3. Validate Location
       final locService = ref.read(locationServiceProvider);
-      await locService.validateLocation();
+      final config = ref.read(appConfigProvider).asData?.value;
+      
+      if (config != null) {
+        await locService.validateLocation(
+          officeLat: config.officeLat,
+          officeLng: config.officeLng,
+          radius: config.attendanceRadius,
+        );
+      } else {
+        // Fallback or error if config is missing
+        throw "Konfigurasi lokasi tidak tersedia.";
+      }
+
       final position = await locService.getCurrentPosition();
 
       // 4. Save to DB (Including Email)
@@ -73,7 +86,17 @@ class AttendanceController extends AsyncNotifier<void> {
 
       // 4. Validate Location
       final locService = ref.read(locationServiceProvider);
-      await locService.validateLocation();
+      final config = ref.read(appConfigProvider).asData?.value;
+
+      if (config != null) {
+        await locService.validateLocation(
+          officeLat: config.officeLat,
+          officeLng: config.officeLng,
+          radius: config.attendanceRadius,
+        );
+      } else {
+        throw "Konfigurasi lokasi tidak tersedia.";
+      }
 
       // 5. Update DB
       await repo.checkOut(user.uid);

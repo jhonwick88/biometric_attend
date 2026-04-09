@@ -10,17 +10,64 @@ import 'admin/user_management_page.dart';
 import 'admin/all_attendance_page.dart';
 import 'admin/settings_page.dart';
 
-class HomePage extends ConsumerWidget {
+import 'widgets/biometric_bottom_sheet.dart';
+import '../services/biometric_service.dart';
+
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  bool _hasPromptedBiometric = false;
+
+  @override
+  Widget build(BuildContext context) {
     final attendanceState = ref.watch(attendanceControllerProvider);
     final historyAsyncValue = ref.watch(attendanceHistoryProvider);
     final userProfileAsync = ref.watch(userProfileProvider);
     final configAsync = ref.watch(appConfigProvider);
 
     final bool isAdminOrDev = userProfileAsync.asData?.value?.role == 'admin' || userProfileAsync.asData?.value?.role == 'dev';
+
+    ref.listen<AsyncValue<UserModel?>>(
+      userProfileProvider,
+      (previous, next) async {
+        if (next.hasValue && next.value != null && !_hasPromptedBiometric) {
+          final user = next.value!;
+          final bioService = ref.read(biometricServiceProvider);
+          final isAvailable = await bioService.isBiometricAvailable();
+
+          // Jika hardware mendukung dan user BELUM mengaktifkan biometric (dan belum ditanya)
+          if (isAvailable && !user.biometricEnabled) {
+            _hasPromptedBiometric = true;
+            if (!mounted) return;
+            
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (context) => BiometricBottomSheet(
+                onEnable: () async {
+                  Navigator.pop(context);
+                  await ref.read(authControllerProvider.notifier).toggleBiometricPreference(true);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Quick Login Berhasil Diaktifkan!')),
+                    );
+                  }
+                },
+                onCancel: () {
+                  Navigator.pop(context);
+                },
+              ),
+            );
+          }
+        }
+      },
+    );
 
     ref.listen<AsyncValue>(
       attendanceControllerProvider,
@@ -49,7 +96,9 @@ class HomePage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      drawer: isAdminOrDev ? _buildAdminDrawer(context, userProfileAsync.asData!.value!) : null,
+      drawer: (userProfileAsync.value != null) 
+          ? _buildMainDrawer(context, userProfileAsync.value!) 
+          : null,
       appBar: AppBar(
         title: const Text('Dashboard Kehadiran'),
         actions: [
@@ -344,56 +393,74 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildAdminDrawer(BuildContext context, UserModel user) {
+  Widget _buildMainDrawer(BuildContext context, UserModel user) {
+    final bool isAdminOrDev = user.role == 'admin' || user.role == 'dev';
+
     return Drawer(
       child: Column(
         children: [
           UserAccountsDrawerHeader(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF2B32B2), Color(0xFF1488CC)], // Modern Dev/Admin Deep Blue Gradient
+                colors: [Color(0xFFFF6F91), Color(0xFFFF9671)], // User Theme Gradient
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
             accountName: Text(
-              user.role.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 16),
+              user.username,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             accountEmail: Text(user.email, style: const TextStyle(color: Colors.white70)),
-            currentAccountPicture: const CircleAvatar(
+            currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
-              child: Icon(Icons.admin_panel_settings, size: 40, color: Color(0xFF2B32B2)),
+              child: Text(
+                user.username.isNotEmpty ? user.username.substring(0, 1).toUpperCase() : "?",
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFFF6F91)),
+              ),
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.people_alt_outlined, color: Colors.black87),
-            title: const Text('Kelola User', style: TextStyle(fontWeight: FontWeight.w500)),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementPage()));
-            },
+          
+          if (isAdminOrDev) ...[
+            const Padding(
+              padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
+              child: Text("ADMIN TOOLS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.people_alt_outlined),
+              title: const Text('Kelola User'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementPage()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history_edu_rounded),
+              title: const Text('Seluruh Riwayat Absen'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AllAttendancePage()));
+              },
+            ),
+          ],
+
+          const Padding(
+            padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
+            child: Text("USER SETTINGS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
           ),
           ListTile(
-            leading: const Icon(Icons.history_edu_rounded, color: Colors.black87),
-            title: const Text('Seluruh Riwayat Absen', style: TextStyle(fontWeight: FontWeight.w500)),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const AllAttendancePage()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined, color: Colors.black87),
-            title: const Text('Setting Aplikasi', style: TextStyle(fontWeight: FontWeight.w500)),
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Pengaturan'),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
             },
           ),
+          
           const Spacer(),
           const Padding(
             padding: EdgeInsets.all(16.0),
-            child: Text('Version 1.0.0 (Developer Tools)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            child: Text('Version 1.0.0', style: TextStyle(color: Colors.grey, fontSize: 12)),
           ),
         ],
       ),

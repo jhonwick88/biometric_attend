@@ -57,9 +57,21 @@ class UserManagementPage extends ConsumerWidget {
         color: Colors.transparent,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          title: Text(
-            user.email,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  user.username,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (user.biometricEnabled)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8.0),
+                  child: Icon(Icons.fingerprint, color: Colors.white70, size: 20),
+                ),
+            ],
           ),
           subtitle: Text(
             'Role: ${user.role.toUpperCase()}',
@@ -72,14 +84,49 @@ class UserManagementPage extends ConsumerWidget {
                 _showEditRoleDialog(context, ref, user);
               } else if (value == 'delete') {
                 _showDeleteDialog(context, ref, user);
+              } else if (value == 'reset_bio') {
+                _showResetBiometricDialog(context, ref, user);
               }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'edit', child: Text('Ubah Role')),
+              if (user.biometricEnabled)
+                const PopupMenuItem(value: 'reset_bio', child: Text('Reset Biometrik')),
               const PopupMenuItem(value: 'delete', child: Text('Hapus User', style: TextStyle(color: Colors.red))),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showResetBiometricDialog(BuildContext context, WidgetRef ref, UserModel user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Biometrik'),
+        content: Text('Apakah Anda yakin ingin menonaktifkan fitur Quick Login untuk ${user.username}? User harus login manual kembali untuk mengaktifkannya.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () {
+              final updatedUser = UserModel(
+                uid: user.uid,
+                email: user.email,
+                username: user.username,
+                biometricEnabled: false,
+                createdAt: user.createdAt,
+                role: user.role,
+              );
+              ref.read(adminControllerProvider.notifier).updateUser(updatedUser);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Biometrik ${user.username} berhasil di-reset!')),
+              );
+            },
+            child: const Text('Reset Sekarang'),
+          ),
+        ],
       ),
     );
   }

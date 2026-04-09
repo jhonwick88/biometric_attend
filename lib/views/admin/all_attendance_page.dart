@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/attendance_model.dart';
 import '../../viewmodels/admin_viewmodel.dart';
+import 'user_attendance_detail_page.dart';
 
 class AllAttendancePage extends ConsumerStatefulWidget {
   const AllAttendancePage({super.key});
@@ -43,18 +44,32 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
               error: (err, stack) => Center(child: Text('Error: $err')),
               data: (history) {
                 final filtered = _filterHistory(history);
+                
+                // Calculate counts per user
+                final userCounts = <String, int>{};
+                for (var att in filtered) {
+                  final email = att.userEmail ?? 'Unknown User';
+                  userCounts[email] = (userCounts[email] ?? 0) + 1;
+                }
+
+                // Get unique list of users who attended
+                final uniqueUsers = userCounts.keys.toList()..sort();
+
                 return Column(
                   children: [
                     _buildStatsBadge(filtered.length),
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final att = filtered[index];
-                          return _buildAttendanceCard(att);
-                        },
-                      ),
+                      child: uniqueUsers.isEmpty 
+                        ? const Center(child: Text('Tidak ada data absensi untuk periode ini.'))
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: uniqueUsers.length,
+                            itemBuilder: (context, index) {
+                              final email = uniqueUsers[index];
+                              final count = userCounts[email] ?? 0;
+                              return _buildAttendanceSummaryCard(email, count);
+                            },
+                          ),
                     ),
                   ],
                 );
@@ -127,31 +142,79 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
     return history.where((att) {
       if (att.checkIn == null) return false;
       
-      bool dateMatch = true;
       if (_selectedDateRange != null) {
-        dateMatch = att.checkIn!.isAfter(_selectedDateRange!.start.subtract(const Duration(days: 1))) &&
-                    att.checkIn!.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
+        // Normalize range boundaries
+        final start = DateTime(_selectedDateRange!.start.year, _selectedDateRange!.start.month, _selectedDateRange!.start.day);
+        final end = DateTime(_selectedDateRange!.end.year, _selectedDateRange!.end.month, _selectedDateRange!.end.day, 23, 59, 59);
+
+        // Check if att.checkIn is within [start, end] inclusive
+        return (att.checkIn!.isAtSameMomentAs(start) || att.checkIn!.isAfter(start)) &&
+               (att.checkIn!.isAtSameMomentAs(end) || att.checkIn!.isBefore(end));
       }
       
-      return dateMatch;
+      return true;
     }).toList();
   }
 
-  Widget _buildAttendanceCard(AttendanceModel att) {
-    final formatTime = DateFormat('HH:mm');
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: ListTile(
-        title: Text(att.userEmail ?? 'Unknown User', style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${att.date} • In: ${att.checkIn != null ? formatTime.format(att.checkIn!) : '-'} • Out: ${att.checkOut != null ? formatTime.format(att.checkOut!) : '-'}'),
-        trailing: Icon(
-          att.checkOut != null ? Icons.check_circle : Icons.pending,
-          color: att.checkOut != null ? Colors.green : Colors.orange,
+  Widget _buildAttendanceSummaryCard(String email, int count) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UserAttendanceDetailPage(userEmail: email),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          leading: CircleAvatar(
+            backgroundColor: const Color(0xFFFF6F91).withOpacity(0.1),
+            child: Text(
+              email.isNotEmpty ? email[0].toUpperCase() : '?',
+              style: const TextStyle(color: Color(0xFFFF6F91), fontWeight: FontWeight.bold),
+            ),
+          ),
+          title: Text(
+            email,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          subtitle: const Text('Total kehadiran dlm periode ini'),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF6F91),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF6F91).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: Text(
+              '$count Hari',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
         ),
       ),
     );

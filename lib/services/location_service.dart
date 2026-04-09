@@ -1,5 +1,4 @@
 import 'package:geolocator/geolocator.dart';
-import '../core/constants.dart';
 
 class LocationService {
   Future<Position?> getCurrentPosition() async {
@@ -27,19 +26,23 @@ class LocationService {
         desiredAccuracy: LocationAccuracy.high);
   }
 
-  /// Calculates distance in meters and returns a boolean if valid
-  Future<void> validateLocation() async {
+  /// Refactored to accept dynamic office location and radius
+  Future<void> validateLocation({
+    required double officeLat,
+    required double officeLng,
+    required double radius,
+  }) async {
     final position = await getCurrentPosition();
     if (position == null) throw Exception("Tidak bisa mendapatkan lokasi");
 
     double distance = Geolocator.distanceBetween(
-      AppConstants.officeLat,
-      AppConstants.officeLng,
+      officeLat,
+      officeLng,
       position.latitude,
       position.longitude,
     );
 
-    if (distance > AppConstants.attendanceRadius) {
+    if (distance > radius) {
       throw Exception('Di luar area absensi (Jarak: ${distance.toStringAsFixed(1)}m)');
     }
   }
