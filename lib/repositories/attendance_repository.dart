@@ -79,6 +79,28 @@ class AttendanceRepository {
             .toList());
   }
 
+  // Get attendance history with pagination and 3-month limit
+  Future<QuerySnapshot<Map<String, dynamic>>> getAttendanceHistoryPaginated({
+    required String uid,
+    DocumentSnapshot? lastDoc,
+    int limit = 10,
+  }) {
+    final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
+    
+    Query<Map<String, dynamic>> query = _firestore
+        .collection('attendance')
+        .where('uid', isEqualTo: uid)
+        .where('checkIn', isGreaterThanOrEqualTo: Timestamp.fromDate(threeMonthsAgo))
+        .orderBy('checkIn', descending: true)
+        .limit(limit);
+
+    if (lastDoc != null) {
+      query = query.startAfterDocument(lastDoc);
+    }
+
+    return query.get();
+  }
+
   // Admin: Get all attendance history
   Stream<List<AttendanceModel>> getAllAttendanceHistory() {
     return _firestore

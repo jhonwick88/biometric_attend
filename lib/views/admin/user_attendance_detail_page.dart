@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/attendance_model.dart';
 import '../../viewmodels/admin_viewmodel.dart';
+import '../../viewmodels/config_viewmodel.dart';
 
 class UserAttendanceDetailPage extends ConsumerStatefulWidget {
   final String userEmail;
@@ -27,11 +28,15 @@ class _UserAttendanceDetailPageState extends ConsumerState<UserAttendanceDetailP
     );
   }
 
-  String _calculateDuration(DateTime? start, DateTime? end) {
+  String _calculateDuration(DateTime? start, DateTime? end, int breakMinutes) {
     if (start == null || end == null) return '-';
     final diff = end.difference(start);
-    final hours = diff.inHours;
-    final minutes = diff.inMinutes.remainder(60);
+    final totalMinutes = diff.inMinutes - breakMinutes;
+    
+    if (totalMinutes <= 0) return '0 Jam 0 Menit';
+    
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
     return '$hours Jam $minutes Menit';
   }
 
@@ -60,7 +65,10 @@ class _UserAttendanceDetailPageState extends ConsumerState<UserAttendanceDetailP
     Map<String, double> workHoursMap = {};
     for (var att in history) {
       if (att.checkIn != null && att.checkOut != null) {
-        final hours = att.checkOut!.difference(att.checkIn!).inMinutes / 60.0;
+        final config = ref.read(appConfigProvider).value;
+        final breakMinutes = config?.breakTimeMinutes ?? 30;
+        final totalMinutes = att.checkOut!.difference(att.checkIn!).inMinutes - breakMinutes;
+        final hours = (totalMinutes > 0 ? totalMinutes : 0) / 60.0;
         workHoursMap[att.date] = hours;
       }
     }
@@ -109,7 +117,9 @@ class _UserAttendanceDetailPageState extends ConsumerState<UserAttendanceDetailP
                         padding: const EdgeInsets.all(16),
                         itemCount: sortedHistory.length,
                         itemBuilder: (context, index) {
-                          return _buildRecordCard(sortedHistory[index]);
+                          final config = ref.watch(appConfigProvider).value;
+                          final breakMinutes = config?.breakTimeMinutes ?? 30;
+                          return _buildRecordCard(sortedHistory[index], breakMinutes);
                         },
                       ),
               ),
@@ -279,9 +289,9 @@ class _UserAttendanceDetailPageState extends ConsumerState<UserAttendanceDetailP
     );
   }
 
-  Widget _buildRecordCard(AttendanceModel att) {
+  Widget _buildRecordCard(AttendanceModel att, int breakMinutes) {
     final formatTime = DateFormat('HH:mm');
-    final duration = _calculateDuration(att.checkIn, att.checkOut);
+    final duration = _calculateDuration(att.checkIn, att.checkOut, breakMinutes);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

@@ -17,6 +17,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
   final _radiusController = TextEditingController();
+  final _breakTimeController = TextEditingController();
 
   @override
   void initState() {
@@ -29,6 +30,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _latController.text = config.officeLat.toString();
         _lngController.text = config.officeLng.toString();
         _radiusController.text = config.attendanceRadius.toString();
+        _breakTimeController.text = config.breakTimeMinutes.toString();
       }
     });
   }
@@ -39,6 +41,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _latController.dispose();
     _lngController.dispose();
     _radiusController.dispose();
+    _breakTimeController.dispose();
     super.dispose();
   }
 
@@ -155,6 +158,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: 'Attendance Radius (Meter)', suffixText: 'm'),
                     ),
+                    const Divider(height: 48),
+                    const Text('Waktu Istirahat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepPurple)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _breakTimeController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Break Time (Minutes)', suffixText: 'mins'),
+                    ),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
@@ -162,16 +173,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         final lat = double.tryParse(_latController.text) ?? config.officeLat;
                         final lng = double.tryParse(_lngController.text) ?? config.officeLng;
                         final radius = double.tryParse(_radiusController.text) ?? config.attendanceRadius;
+                        final breakTime = int.tryParse(_breakTimeController.text) ?? config.breakTimeMinutes;
 
                         ref.read(configControllerProvider.notifier).updateConfig(
                           config.copyWith(
                             officeLat: lat,
                             officeLng: lng,
                             attendanceRadius: radius,
+                            breakTimeMinutes: breakTime,
                           ),
                         );
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Konfigurasi lokasi berhasil disimpan!')),
+                          const SnackBar(content: Text('Konfigurasi berhasil disimpan!')),
                         );
                       },
                       child: const Text('Simpan Konfigurasi'),

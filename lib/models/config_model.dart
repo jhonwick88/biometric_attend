@@ -6,6 +6,7 @@ class AppConfigModel {
   final double officeLat;
   final double officeLng;
   final double attendanceRadius;
+  final int breakTimeMinutes;
 
   AppConfigModel({
     required this.showRegister,
@@ -13,6 +14,7 @@ class AppConfigModel {
     required this.officeLat,
     required this.officeLng,
     required this.attendanceRadius,
+    required this.breakTimeMinutes,
   });
 
   factory AppConfigModel.fromMap(Map<String, dynamic> map) {
@@ -22,6 +24,7 @@ class AppConfigModel {
       officeLat: (map['officeLat'] as num?)?.toDouble() ?? AppConstants.officeLat,
       officeLng: (map['officeLng'] as num?)?.toDouble() ?? AppConstants.officeLng,
       attendanceRadius: (map['attendanceRadius'] as num?)?.toDouble() ?? AppConstants.attendanceRadius,
+      breakTimeMinutes: (map['breakTimeMinutes'] as num?)?.toInt() ?? 30,
     );
   }
 
@@ -32,6 +35,7 @@ class AppConfigModel {
       'officeLat': officeLat,
       'officeLng': officeLng,
       'attendanceRadius': attendanceRadius,
+      'breakTimeMinutes': breakTimeMinutes,
     };
   }
 
@@ -41,6 +45,7 @@ class AppConfigModel {
     double? officeLat,
     double? officeLng,
     double? attendanceRadius,
+    int? breakTimeMinutes,
   }) {
     return AppConfigModel(
       showRegister: showRegister ?? this.showRegister,
@@ -48,6 +53,7 @@ class AppConfigModel {
       officeLat: officeLat ?? this.officeLat,
       officeLng: officeLng ?? this.officeLng,
       attendanceRadius: attendanceRadius ?? this.attendanceRadius,
+      breakTimeMinutes: breakTimeMinutes ?? this.breakTimeMinutes,
     );
   }
 }

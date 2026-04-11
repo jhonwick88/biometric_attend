@@ -38,4 +38,22 @@ class UserModel {
       'role': role,
     };
   }
+
+  UserModel copyWith({
+    String? uid,
+    String? email,
+    String? username,
+    bool? biometricEnabled,
+    DateTime? createdAt,
+    String? role,
+  }) {
+    return UserModel(
+      uid: uid ?? this.uid,
+      email: email ?? this.email,
+      username: username ?? this.username,
+      biometricEnabled: biometricEnabled ?? this.biometricEnabled,
+      createdAt: createdAt ?? this.createdAt,
+      role: role ?? this.role,
+    );
+  }
 }

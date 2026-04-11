@@ -3,172 +3,456 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/user_model.dart';
 import '../../viewmodels/admin_viewmodel.dart';
 
-class UserManagementPage extends ConsumerWidget {
+class UserManagementPage extends ConsumerStatefulWidget {
   const UserManagementPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserManagementPage> createState() => _UserManagementPageState();
+}
+
+class _UserManagementPageState extends ConsumerState<UserManagementPage> {
+  String _searchQuery = "";
+  String _selectedRole = "ALL";
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final usersAsync = ref.watch(allUsersProvider);
 
+    // --- BRAND COLORS (Consistent with HomePage) ---
+    const primaryColor = Color(0xFFFF6F91); // Soft Pink
+    const accentColor = Color(0xFFFF9671); // Soft Orange
+    const backgroundColor = Color(0xFFFFEEF2);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kelola User'),
-      ),
-      body: usersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
-        data: (users) {
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final user = users[index];
-              return _buildUserCard(context, ref, user);
-            },
-          );
-        },
+      backgroundColor: backgroundColor,
+      body: Stack(
+        children: [
+          // Background Gradient Decorations
+          Positioned(
+            top: -100,
+            right: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: primaryColor.withOpacity(0.06),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 400,
+            left: -100,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accentColor.withOpacity(0.05),
+              ),
+            ),
+          ),
+
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // ---------------- CUSTOM SLIVER APP BAR ----------------
+              SliverAppBar(
+                expandedHeight: 180,
+                floating: false,
+                pinned: true,
+                stretch: true,
+                backgroundColor: backgroundColor,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: primaryColor, size: 22),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+                  titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  background: Container(
+                    padding: const EdgeInsets.only(top: 85, left: 24, right: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "PENGATURAN",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: primaryColor.withOpacity(0.8),
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          "Kelola Team",
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: -1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // ---------------- SEARCH & FILTERS ----------------
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      _buildSearchField(),
+                      const SizedBox(height: 16),
+                      _buildRoleFilterChips(),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ---------------- USER LIST ----------------
+              usersAsync.when(
+                loading: () => const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator(color: primaryColor)),
+                ),
+                error: (err, stack) => SliverFillRemaining(
+                  child: Center(child: Text('Error: $err')),
+                ),
+                data: (users) {
+                  // Apply Filtering
+                  final filteredUsers = users.where((u) {
+                    final matchesSearch = u.username.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                                          u.email.toLowerCase().contains(_searchQuery.toLowerCase());
+                    final matchesRole = _selectedRole == "ALL" || u.role.toUpperCase() == _selectedRole;
+                    return matchesSearch && matchesRole;
+                  }).toList();
+
+                  if (filteredUsers.isEmpty) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.people_outline_rounded, size: 80, color: primaryColor.withOpacity(0.1)),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Tidak ada user ditemukan.',
+                            style: TextStyle(color: Colors.black38, fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.all(20),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildUserCard(context, filteredUsers[index]),
+                        childCount: filteredUsers.length,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildUserCard(BuildContext context, WidgetRef ref, UserModel user) {
+  Widget _buildSearchField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF6F91).withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (val) => setState(() => _searchQuery = val),
+        decoration: InputDecoration(
+          hintText: "Cari nama atau email...",
+          hintStyle: const TextStyle(color: Colors.black26, fontSize: 14),
+          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFFF6F91)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          suffixIcon: _searchQuery.isNotEmpty 
+            ? IconButton(
+                icon: const Icon(Icons.clear_rounded, size: 18),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = "");
+                },
+              )
+            : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleFilterChips() {
+    final roles = ["ALL", "ADMIN", "USER", "DEV"];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: roles.map((role) {
+          final isSelected = _selectedRole == role;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(role),
+              selected: isSelected,
+              onSelected: (selected) {
+                if (selected) setState(() => _selectedRole = role);
+              },
+              selectedColor: const Color(0xFFFF6F91),
+              backgroundColor: Colors.white,
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.black54,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              elevation: isSelected ? 4 : 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(color: isSelected ? Colors.transparent : Colors.black12),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(BuildContext context, UserModel user) {
+    const primaryColor = Color(0xFFFF6F91);
     final bool isAdmin = user.role == 'admin' || user.role == 'dev';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: isAdmin 
-            ? [const Color(0xFF2B32B2), const Color(0xFF1488CC)]
-            : [const Color(0xFFFF6F91), const Color(0xFFFF9671)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          ),
+          )
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  user.username,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                  overflow: TextOverflow.ellipsis,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {}, // Interaction could be expanded here
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: (isAdmin ? const Color(0xFFFF9671) : primaryColor).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
+                      style: TextStyle(color: isAdmin ? const Color(0xFFFF9671) : primaryColor, fontWeight: FontWeight.w900, fontSize: 20),
+                    ),
+                  ),
                 ),
-              ),
-              if (user.biometricEnabled)
-                const Padding(
-                  padding: EdgeInsets.only(left: 8.0),
-                  child: Icon(Icons.fingerprint, color: Colors.white70, size: 20),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.username,
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF333333)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (user.biometricEnabled)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 6),
+                              child: Icon(Icons.fingerprint_rounded, color: Color(0xFF4CAF50), size: 16),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user.email,
+                        style: const TextStyle(fontSize: 12, color: Colors.black38, fontWeight: FontWeight.normal),
+                      ),
+                      const SizedBox(height: 6),
+                      _buildRoleBadge(user.role),
+                    ],
+                  ),
                 ),
-            ],
-          ),
-          subtitle: Text(
-            'Role: ${user.role.toUpperCase()}',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          trailing: PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showEditRoleDialog(context, ref, user);
-              } else if (value == 'delete') {
-                _showDeleteDialog(context, ref, user);
-              } else if (value == 'reset_bio') {
-                _showResetBiometricDialog(context, ref, user);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Ubah Role')),
-              if (user.biometricEnabled)
-                const PopupMenuItem(value: 'reset_bio', child: Text('Reset Biometrik')),
-              const PopupMenuItem(value: 'delete', child: Text('Hapus User', style: TextStyle(color: Colors.red))),
-            ],
+                _buildActionMenu(user),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  void _showResetBiometricDialog(BuildContext context, WidgetRef ref, UserModel user) {
+  Widget _buildRoleBadge(String role) {
+    Color color;
+    switch (role.toLowerCase()) {
+      case 'admin':
+        color = const Color(0xFF2B32B2);
+        break;
+      case 'dev':
+        color = Colors.deepPurple;
+        break;
+      default:
+        color = const Color(0xFFFF6F91);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Text(
+        role.toUpperCase(),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5),
+      ),
+    );
+  }
+
+  Widget _buildActionMenu(UserModel user) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert_rounded, color: Colors.black26),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      onSelected: (value) {
+        if (value == 'edit') {
+          _showEditRoleDialog(context, user);
+        } else if (value == 'delete') {
+          _showDeleteDialog(context, user);
+        } else if (value == 'reset_bio') {
+          _showResetBiometricDialog(context, user);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'edit',
+          child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Ubah Role')]),
+        ),
+        if (user.biometricEnabled)
+          const PopupMenuItem(
+            value: 'reset_bio',
+            child: Row(children: [Icon(Icons.fingerprint_rounded, size: 18), SizedBox(width: 8), Text('Reset Biometrik')]),
+          ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(children: [Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18), SizedBox(width: 8), Text('Hapus User', style: TextStyle(color: Colors.red))]),
+        ),
+      ],
+    );
+  }
+
+  // --- DIALOGS (Styled) ---
+
+  void _showResetBiometricDialog(BuildContext context, UserModel user) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset Biometrik'),
-        content: Text('Apakah Anda yakin ingin menonaktifkan fitur Quick Login untuk ${user.username}? User harus login manual kembali untuk mengaktifkannya.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Reset Biometrik', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Apakah Anda yakin ingin menonaktifkan fitur Quick Login untuk ${user.username}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.black38))),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6F91),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             onPressed: () {
-              final updatedUser = UserModel(
-                uid: user.uid,
-                email: user.email,
-                username: user.username,
-                biometricEnabled: false,
-                createdAt: user.createdAt,
-                role: user.role,
-              );
+              final updatedUser = user.copyWith(biometricEnabled: false);
               ref.read(adminControllerProvider.notifier).updateUser(updatedUser);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Biometrik ${user.username} berhasil di-reset!')),
+                const SnackBar(content: Text('Biometrik berhasil di-reset!')),
               );
             },
-            child: const Text('Reset Sekarang'),
+            child: const Text('Reset Sekarang', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  void _showEditRoleDialog(BuildContext context, WidgetRef ref, UserModel user) {
+  void _showEditRoleDialog(BuildContext context, UserModel user) {
     showDialog(
       context: context,
       builder: (context) {
         String selectedRole = user.role;
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Ubah Role User'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: const Text('Ubah Role User', style: TextStyle(fontWeight: FontWeight.bold)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: ['user', 'admin', 'dev'].map((role) {
                   return RadioListTile<String>(
-                    title: Text(role.toUpperCase()),
+                    title: Text(role.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    activeColor: const Color(0xFFFF6F91),
                     value: role,
                     groupValue: selectedRole,
                     onChanged: (value) {
-                      setState(() => selectedRole = value!);
+                      setDialogState(() => selectedRole = value!);
                     },
                   );
                 }).toList(),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.black38))),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF6F91),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   onPressed: () {
-                    final updatedUser = UserModel(
-                      uid: user.uid,
-                      email: user.email,
-                      username: user.username,
-                      biometricEnabled: user.biometricEnabled,
-                      createdAt: user.createdAt,
-                      role: selectedRole,
-                    );
+                    final updatedUser = user.copyWith(role: selectedRole);
                     ref.read(adminControllerProvider.notifier).updateUser(updatedUser);
                     Navigator.pop(context);
                   },
-                  child: const Text('Simpan'),
+                  child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -178,21 +462,25 @@ class UserManagementPage extends ConsumerWidget {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, WidgetRef ref, UserModel user) {
+  void _showDeleteDialog(BuildContext context, UserModel user) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus User'),
-        content: Text('Apakah Anda yakin ingin menghapus ${user.email}?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Hapus User', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+        content: Text('Apakah Anda benar-benar yakin ingin menghapus ${user.email}? Tindakan ini tidak dapat dibatalkan.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal', style: TextStyle(color: Colors.black38))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             onPressed: () {
               ref.read(adminControllerProvider.notifier).deleteUser(user.uid);
               Navigator.pop(context);
             },
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const Text('Hapus Permanen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
