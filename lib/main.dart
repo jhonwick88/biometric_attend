@@ -7,11 +7,17 @@ import 'viewmodels/auth_viewmodel.dart';
 import 'views/home_page.dart';
 import 'views/login_page.dart';
 
+import 'services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize Notifications
+  await NotificationService.initialize();
+  
   runApp(
     const ProviderScope(
       child: MyApp(),

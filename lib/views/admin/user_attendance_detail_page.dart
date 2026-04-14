@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/attendance_model.dart';
+import '../../models/user_model.dart';
 import '../../viewmodels/admin_viewmodel.dart';
 import '../../viewmodels/config_viewmodel.dart';
 
@@ -86,43 +88,121 @@ class _UserAttendanceDetailPageState extends ConsumerState<UserAttendanceDetailP
   @override
   Widget build(BuildContext context) {
     final attendanceAsync = ref.watch(allAttendanceProvider);
+    final usersAsync = ref.watch(allUsersProvider);
+
+    // --- BRAND COLORS ---
+    const primaryColor = Color(0xFFFF6F91);
+    const backgroundColor = Color(0xFFFFEEF2);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFB),
-      appBar: AppBar(
-        title: const Text('Detail Kehadiran'),
-        // elevation: 0,
-        // backgroundColor: const Color(0xFF2B32B2),
-        // foregroundColor: Colors.white,
-      ),
+      backgroundColor: backgroundColor,
       body: attendanceAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator(color: primaryColor)),
         error: (err, stack) => Center(child: Text('Error: $err')),
         data: (history) {
           final userHistory = _filterUserHistory(history);
           final dailyHours = _getDailyWorkHours(userHistory);
           
+          // Get username
+          String username = widget.userEmail;
+          usersAsync.whenData((users) {
+            final user = users.cast<UserModel?>().firstWhere((u) => u?.email == widget.userEmail, orElse: () => null);
+            if (user != null) username = user.username;
+          });
+
           // Sort by date descending for the list
           final sortedHistory = List<AttendanceModel>.from(userHistory);
           sortedHistory.sort((a, b) => (b.checkIn ?? DateTime(0)).compareTo(a.checkIn ?? DateTime(0)));
 
-          return Column(
-            children: [
-              _buildUserHeader(userHistory.length, dailyHours),
-              _buildFilterBar(),
-              Expanded(
-                child: sortedHistory.isEmpty
-                    ? const Center(child: Text('Tidak ada riwayat untuk periode ini.'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: sortedHistory.length,
-                        itemBuilder: (context, index) {
-                          final config = ref.watch(appConfigProvider).value;
-                          final breakMinutes = config?.breakTimeMinutes ?? 30;
-                          return _buildRecordCard(sortedHistory[index], breakMinutes);
-                        },
+          // Calculate Absences
+          int totalDays = 0;
+          if (_selectedDateRange != null) {
+            totalDays = _selectedDateRange!.end.difference(_selectedDateRange!.start).inDays + 1;
+          }
+          final int absences = (totalDays - userHistory.length).clamp(0, totalDays);
+
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // ---------------- CUSTOM SLIVER APP BAR ----------------
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: false,
+                pinned: true,
+                backgroundColor: Colors.transparent,
+                scrolledUnderElevation: 0,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: primaryColor, size: 22),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                flexibleSpace: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      color: backgroundColor.withOpacity(0.5),
+                      child: FlexibleSpaceBar(
+                        titlePadding: const EdgeInsets.only(left: 54, right: 16, bottom: 16),
+                        centerTitle: false,
+                        title: Text(
+                          username,
+                          style: const TextStyle(
+                            color: Color(0xFF1A1A1A),
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            fontSize: 21,
+                          ),
+                        ),
+                        background: Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 60, left: 54),
+                            child: const Text(
+                              "DETAIL KEHADIRAN",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: primaryColor,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
+                    ),
+                  ),
+                ),
               ),
+
+              // ---------------- USER HEADER & STATS ----------------
+              SliverToBoxAdapter(
+                child: _buildUserHeader(username, userHistory.length, absences, dailyHours),
+              ),
+
+              // ---------------- FILTER BAR ----------------
+              SliverToBoxAdapter(
+                child: _buildFilterBar(),
+              ),
+
+              // ---------------- RECORD LIST ----------------
+              sortedHistory.isEmpty
+                  ? const SliverFillRemaining(
+                      child: Center(child: Text('Tidak ada riwayat untuk periode ini.')),
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final config = ref.watch(appConfigProvider).value;
+                            final breakMinutes = config?.breakTimeMinutes ?? 30;
+                            return _buildRecordCard(sortedHistory[index], breakMinutes);
+                          },
+                          childCount: sortedHistory.length,
+                        ),
+                      ),
+                    ),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           );
         },
@@ -130,59 +210,68 @@ class _UserAttendanceDetailPageState extends ConsumerState<UserAttendanceDetailP
     );
   }
 
-  Widget _buildUserHeader(int totalAttendance, List<double> chartData) {
+  Widget _buildUserHeader(String name, int totalAttendance, int absences, List<double> chartData) {
+    const primaryColor = Color(0xFFFF6F91);
+    const accentColor = Color(0xFFFF9671);
+
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF2B32B2), Color(0xFF1488CC)],
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [primaryColor, accentColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          )
+        ],
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(20.0),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white24,
-                  child: Text(
-                    widget.userEmail[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.userEmail,
-                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        '${chartData.fold<double>(0, (p, c) => p + c).toStringAsFixed(1)} Jam',
+                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -1),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const Text(
-                        'Performa Kerja Harian',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      Text(
+                        "Total Jam Terbang ($name)",
+                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                 ),
-                _buildStatBadge('Total Hadir', '$totalAttendance Hari'),
+                Row(
+                  children: [
+                    _buildStatBadge('Hadir', '$totalAttendance'),
+                    const SizedBox(width: 8),
+                    _buildStatBadge('Absen', '$absences'),
+                  ],
+                ),
               ],
             ),
           ),
-          // Grafik Bar Dempet Warna-warni
+          // Grafik
           Container(
-            height: 100,
+            height: 90,
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             child: _buildPerformanceChart(chartData),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
         ],
       ),
     );

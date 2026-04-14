@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:marquee/marquee.dart';
@@ -13,6 +14,8 @@ import 'admin/settings_page.dart';
 import 'widgets/biometric_bottom_sheet.dart';
 import '../services/biometric_service.dart';
 import 'self_attendance_history_page.dart';
+import 'info/privacy_security_page.dart';
+import 'info/support_center_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -152,34 +155,38 @@ class _HomePageState extends ConsumerState<HomePage> {
           ? _buildMainDrawer(context, userProfileAsync.value!) 
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: attendanceState.isLoading 
-        ? null // Hide or show loading while processing
-        : AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(scale: animation, child: child),
-              );
-            },
-            child: todayCheckIn == null
+      floatingActionButton: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(scale: animation, child: child),
+          );
+        },
+        child: todayCheckIn == null
+            ? _buildFloatingActionButton(
+                key: const ValueKey('check_in'),
+                title: "Check In",
+                icon: Icons.fingerprint_rounded,
+                color: successColor,
+                isLoading: attendanceState.isLoading,
+                onTap: attendanceState.isLoading 
+                    ? null 
+                    : () => ref.read(attendanceControllerProvider.notifier).checkIn(),
+              )
+            : (todayCheckOut == null
                 ? _buildFloatingActionButton(
-                    key: const ValueKey('check_in'),
-                    title: "Check In",
+                    key: const ValueKey('check_out'),
+                    title: "Check Out",
                     icon: Icons.fingerprint_rounded,
-                    color: successColor,
-                    onTap: () => ref.read(attendanceControllerProvider.notifier).checkIn(),
+                    color: warningColor,
+                    isLoading: attendanceState.isLoading,
+                    onTap: attendanceState.isLoading 
+                        ? null 
+                        : () => ref.read(attendanceControllerProvider.notifier).checkOut(),
                   )
-                : (todayCheckOut == null
-                    ? _buildFloatingActionButton(
-                        key: const ValueKey('check_out'),
-                        title: "Check Out",
-                        icon: Icons.fingerprint_rounded,
-                        color: warningColor,
-                        onTap: () => ref.read(attendanceControllerProvider.notifier).checkOut(),
-                      )
-                    : const SizedBox.shrink()), // Hide if both done
-          ),
+                : const SizedBox.shrink()), // Hide if both done
+      ),
       body: Stack(
         children: [
           // Background Gradient Decorations
@@ -191,7 +198,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: primaryColor.withOpacity(0.06),
+                color: primaryColor.withOpacity(0.4),
               ),
             ),
           ),
@@ -203,7 +210,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.05),
+                color: accentColor.withOpacity(0.3),
               ),
             ),
           ),
@@ -213,11 +220,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             slivers: [
               // ---------------- CUSTOM SLIVER APP BAR ----------------
               SliverAppBar(
-                expandedHeight: 180,
+                expandedHeight: 120, // Tall enough for nice collapse animation
                 floating: false,
                 pinned: true,
-                stretch: true,
-                backgroundColor: backgroundColor,
+                backgroundColor: Colors.transparent,
+                scrolledUnderElevation: 0,
                 elevation: 0,
                 leading: Builder(
                   builder: (context) => IconButton(
@@ -239,39 +246,43 @@ class _HomePageState extends ConsumerState<HomePage> {
                       icon: const Icon(Icons.logout_rounded, color: Colors.black54, size: 22),
                       onPressed: () {
                         _handleLogout(context, ref);
-                        //Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
                       },
                     ),
                   ),
                 ],
-                flexibleSpace: FlexibleSpaceBar(
-                  stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
-                  titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  background: Container(
-                    padding: const EdgeInsets.only(top: 85, left: 24, right: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getGreeting().toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: primaryColor.withOpacity(0.8),
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
+                flexibleSpace: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      color: backgroundColor.withOpacity(0.5),
+                      child: FlexibleSpaceBar(
+                        titlePadding: const EdgeInsets.only(left: 54, right: 16, bottom: 16),
+                        centerTitle: false,
+                        title: Text(
                           userProfileAsync.value?.username ?? "Team Member",
                           style: const TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w900,
                             color: Color(0xFF1A1A1A),
-                            letterSpacing: -1.0,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            fontSize: 21,
                           ),
                         ),
-                      ],
+                        background: Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 60, left: 54),
+                            child: Text(
+                              _getGreeting().toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: primaryColor.withOpacity(0.8),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -279,39 +290,43 @@ class _HomePageState extends ConsumerState<HomePage> {
 // ... (omitting middle parts for succinctness in thought, but tool will use full context if I provide it carefully)
 // Wait, I should provide the exact lines to replace.
 
-              // ---------------- MARQUEE MESSAGE ----------------
-              SliverToBoxAdapter(
-                child: configAsync.when(
-                  data: (config) => config.runningMessage.isNotEmpty
-                      ? Container(
-                          margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: primaryColor,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(color: primaryColor.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))
-                            ],
+              SliverMainAxisGroup(
+                slivers: [
+                  // ---------------- MARQUEE MESSAGE ----------------
+                  if (configAsync.asData != null && configAsync.asData!.value.runningMessage.isNotEmpty)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _StickyHeaderDelegate(
+                    minHeight: 60,
+                    maxHeight: 60,
+                    child: Container(
+                      color: backgroundColor, // hides content scrolling under it
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(color: primaryColor.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Marquee(
+                            text: configAsync.asData!.value.runningMessage,
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
+                            scrollAxis: Axis.horizontal,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            blankSpace: 150.0,
+                            velocity: 45.0,
+                            pauseAfterRound: const Duration(seconds: 2),
+                            startPadding: 10.0,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Marquee(
-                              text: config.runningMessage,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
-                              scrollAxis: Axis.horizontal,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              blankSpace: 150.0,
-                              velocity: 45.0,
-                              pauseAfterRound: const Duration(seconds: 2),
-                              startPadding: 10.0,
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
 
               // ---------------- STATUS & DATE CARD ----------------
               SliverPadding(
@@ -421,7 +436,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         const SizedBox(height: 24),
                         SizedBox(
-                          height: 100,
+                          height: 120, // Increased height to prevent overflow
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -434,7 +449,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                                       duration: const Duration(milliseconds: 800),
                                       curve: Curves.easeOutBack,
                                       width: 12,
-                                      height: (weeklyHours[i] / 8) * 70 + 5,
+                                      // Added clamping to prevent bar from growing beyond its boundaries
+                                      height: ((weeklyHours[i] / 8) * 70 + 5).clamp(0, 95), 
                                       decoration: BoxDecoration(
                                         gradient: LinearGradient(
                                           colors: [accentColor, accentColor.withOpacity(0.4)],
@@ -456,7 +472,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          "Visualisasi performa kerja Anda selama 7 hari terakhir.",
+                          "Performa kerja Anda selama 7 hari terakhir.",
                           style: TextStyle(color: Colors.white60, fontSize: 11),
                         ),
                       ],
@@ -465,33 +481,93 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
 
-              // ---------------- RECENT HISTORY HEADER ----------------
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                sliver: SliverToBoxAdapter(
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SelfAttendanceHistoryPage()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Recent History",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: primaryColor.withOpacity(0.8),
-                            ),
+                ],
+              ),
+
+              SliverMainAxisGroup(
+                slivers: [
+                  // ---------------- RECENT HISTORY HEADER ----------------
+                  SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyHeaderDelegate(
+                  minHeight: 96,
+                  maxHeight: 96,
+                  child: Container(
+                    color: backgroundColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SelfAttendanceHistoryPage()),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        splashColor: const Color(0xFFFF6F91).withOpacity(0.1),
+                        highlightColor: const Color(0xFFFF6F91).withOpacity(0.05),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFFF6F91).withOpacity(0.1), width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF6F91).withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          Icon(Icons.arrow_forward_ios_rounded, size: 14, color: primaryColor.withOpacity(0.5)),
-                        ],
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF6F91).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.history_rounded, color: Color(0xFFFF6F91), size: 22),
+                              ),
+                              const SizedBox(width: 16),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      "Riwayat Absensi",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF1A1A1A),
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      "Lihat rekap kehadiran Anda",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFF6F91),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -584,6 +660,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   );
                 },
               ),
+                ],
+              ),
             ],
           ),
         ],
@@ -649,7 +727,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     required String title,
     required IconData icon,
     required Color color,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
+    bool isLoading = false,
   }) {
     return Container(
       key: key,
@@ -689,17 +768,28 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: Colors.white, size: 42),
-                const SizedBox(height: 6),
-                Text(
-                  title.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.0,
+                if (isLoading)
+                  const SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                else ...[
+                  Icon(icon, color: Colors.white, size: 42),
+                  const SizedBox(height: 6),
+                  Text(
+                    title.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -828,12 +918,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                 _buildDrawerItem(
                   icon: Icons.shield_moon_rounded,
                   title: "Privacy & Security",
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacySecurityPage()));
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.help_center_rounded,
                   title: "Support Center",
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportCenterPage()));
+                  },
                 ),
               ],
             ),
@@ -911,5 +1007,35 @@ class _HomePageState extends ConsumerState<HomePage> {
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
     );
+  }
+}
+
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _StickyHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_StickyHeaderDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }

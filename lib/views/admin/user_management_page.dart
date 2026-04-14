@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/user_model.dart';
 import '../../viewmodels/admin_viewmodel.dart';
@@ -43,7 +44,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: primaryColor.withOpacity(0.06),
+                color: primaryColor.withOpacity(0.4),
               ),
             ),
           ),
@@ -55,7 +56,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.05),
+                color: accentColor.withOpacity(0.3),
               ),
             ),
           ),
@@ -65,59 +66,69 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
             slivers: [
               // ---------------- CUSTOM SLIVER APP BAR ----------------
               SliverAppBar(
-                expandedHeight: 180,
+                expandedHeight: 120, // Tall enough for nice collapse animation
                 floating: false,
                 pinned: true,
-                stretch: true,
-                backgroundColor: backgroundColor,
+                backgroundColor: Colors.transparent,
+                scrolledUnderElevation: 0,
                 elevation: 0,
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: primaryColor, size: 22),
                   onPressed: () => Navigator.pop(context),
                 ),
-                flexibleSpace: FlexibleSpaceBar(
-                  stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
-                  titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  background: Container(
-                    padding: const EdgeInsets.only(top: 85, left: 24, right: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "PENGATURAN",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: primaryColor.withOpacity(0.8),
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
+                flexibleSpace: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      color: backgroundColor.withOpacity(0.5),
+                      child: FlexibleSpaceBar(
+                        titlePadding: const EdgeInsets.only(left: 54, bottom: 16),
+                        centerTitle: false,
+                        title: const Text(
                           "Kelola Team",
                           style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
                             color: Color(0xFF1A1A1A),
-                            letterSpacing: -1.0,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            fontSize: 21,
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              // ---------------- SEARCH & FILTERS ----------------
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      _buildSearchField(),
-                      const SizedBox(height: 16),
-                      _buildRoleFilterChips(),
-                    ],
+              // ---------------- STICKY SEARCH & FILTERS ----------------
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyFilterDelegate(
+                  minHeight: 150,
+                  maxHeight: 150,
+                  child: Container(
+                    color: backgroundColor,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // const Padding(
+                        //   padding: EdgeInsets.only(left: 4),
+                        //   child: Text(
+                        //     "PENGATURAN",
+                        //     style: TextStyle(
+                        //       fontSize: 12,
+                        //       color: Colors.black54,
+                        //       fontWeight: FontWeight.bold,
+                        //       letterSpacing: 1.0,
+                        //     ),
+                        //   ),
+                        // ),
+                        _buildSearchField(),
+                        const SizedBox(height: 16),
+                        _buildRoleFilterChips(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -179,27 +190,49 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6F91).withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
+            color: const Color(0xFFFF6F91).withOpacity(0.18),
+            blurRadius: 24,
+            spreadRadius: 4,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: TextField(
         controller: _searchController,
         onChanged: (val) => setState(() => _searchQuery = val),
+        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
         decoration: InputDecoration(
           hintText: "Cari nama atau email...",
-          hintStyle: const TextStyle(color: Colors.black26, fontSize: 14),
-          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFFF6F91)),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          hintStyle: const TextStyle(color: Colors.black38, fontSize: 13, fontWeight: FontWeight.normal),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12.0, right: 8.0, top: 4.0, bottom: 4.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6F91).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.search_rounded, color: Color(0xFFFF6F91), size: 20),
+            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 56, minHeight: 40),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          filled: true,
+          fillColor: Colors.transparent,
           suffixIcon: _searchQuery.isNotEmpty 
             ? IconButton(
-                icon: const Icon(Icons.clear_rounded, size: 18),
+                icon: const Icon(Icons.cancel_rounded, size: 22, color: Color(0xFFFF6F91)),
                 onPressed: () {
                   _searchController.clear();
                   setState(() => _searchQuery = "");
@@ -485,5 +518,35 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
         ],
       ),
     );
+  }
+}
+
+class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _StickyFilterDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_StickyFilterDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }

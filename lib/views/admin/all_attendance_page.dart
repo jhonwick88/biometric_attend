@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/attendance_model.dart';
@@ -58,7 +59,7 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: primaryColor.withOpacity(0.06),
+                color: primaryColor.withOpacity(0.4),
               ),
             ),
           ),
@@ -70,7 +71,7 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.05),
+                color: accentColor.withOpacity(0.3),
               ),
             ),
           ),
@@ -80,44 +81,49 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
             slivers: [
               // ---------------- CUSTOM SLIVER APP BAR ----------------
               SliverAppBar(
-                expandedHeight: 180,
+                expandedHeight: 120, // Tall enough for nice collapse animation
                 floating: false,
                 pinned: true,
-                stretch: true,
-                backgroundColor: backgroundColor,
+                backgroundColor: Colors.transparent,
+                scrolledUnderElevation: 0,
                 elevation: 0,
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: primaryColor, size: 22),
                   onPressed: () => Navigator.pop(context),
                 ),
-                flexibleSpace: FlexibleSpaceBar(
-                  stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
-                  titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  background: Container(
-                    padding: const EdgeInsets.only(top: 85, left: 24, right: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "ADMINISTRASI",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: primaryColor.withOpacity(0.8),
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
+                flexibleSpace: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      color: backgroundColor.withOpacity(0.5),
+                      child: FlexibleSpaceBar(
+                        titlePadding: const EdgeInsets.only(left: 54, right: 16, bottom: 16),
+                        centerTitle: false,
+                        title: const Text(
                           "Riwayat Team",
                           style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
                             color: Color(0xFF1A1A1A),
-                            letterSpacing: -1.0,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            fontSize: 21,
                           ),
                         ),
-                      ],
+                        background: Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 60, left: 54),
+                            child: Text(
+                              "ADMINISTRASI",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: primaryColor.withOpacity(0.8),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -138,16 +144,22 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
                 ),
               ),
 
-              // ---------------- SEARCH & FILTERS ----------------
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    children: [
-                      _buildSearchField(),
-                      const SizedBox(height: 12),
-                      _buildFilterRow(),
-                    ],
+              // ---------------- STICKY SEARCH & FILTERS ----------------
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyFilterDelegate(
+                  minHeight: 160,
+                  maxHeight: 160,
+                  child: Container(
+                    color: backgroundColor, // Memblokir konten yang di-scroll di belakangnya
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                    child: Column(
+                      children: [
+                        _buildSearchField(),
+                        const SizedBox(height: 12),
+                        _buildFilterRow(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -230,27 +242,49 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6F91).withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
+            color: const Color(0xFFFF6F91).withOpacity(0.18),
+            blurRadius: 24,
+            spreadRadius: 4,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: TextField(
         controller: _searchController,
         onChanged: (val) => setState(() => _searchQuery = val),
+        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
         decoration: InputDecoration(
-          hintText: "Cari nama user...",
-          hintStyle: const TextStyle(color: Colors.black26, fontSize: 14),
-          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFFF6F91)),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          hintText: "Cari nama atau email team...",
+          hintStyle: const TextStyle(color: Colors.black38, fontSize: 13, fontWeight: FontWeight.normal),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12.0, right: 8.0, top: 4.0, bottom: 4.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6F91).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.search_rounded, color: Color(0xFFFF6F91), size: 20),
+            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 56, minHeight: 40),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          filled: true,
+          fillColor: Colors.transparent,
           suffixIcon: _searchQuery.isNotEmpty 
             ? IconButton(
-                icon: const Icon(Icons.clear_rounded, size: 18),
+                icon: const Icon(Icons.cancel_rounded, size: 22, color: Color(0xFFFF6F91)),
                 onPressed: () {
                   _searchController.clear();
                   setState(() => _searchQuery = "");
@@ -266,62 +300,95 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
     return Row(
       children: [
         Expanded(
-          child: InkWell(
-            onTap: () async {
-              final range = await showDateRangePicker(
-                context: context,
-                firstDate: DateTime(2023),
-                lastDate: DateTime.now(),
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.light(
-                        primary: Color(0xFFFF6F91),
-                        onPrimary: Colors.white,
-                        onSurface: Colors.black87,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () async {
+                final range = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2023),
+                  lastDate: DateTime.now(),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                          primary: Color(0xFFFF6F91),
+                          onPrimary: Colors.white,
+                          onSurface: Colors.black87,
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (range != null) setState(() => _selectedDateRange = range);
+              },
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFFF6F91).withOpacity(0.15), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF6F91).withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6F91).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.date_range_rounded, size: 16, color: Color(0xFFFF6F91)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _selectedDateRange == null 
+                          ? 'Filter Tanggal' 
+                          : '${DateFormat('dd MMM').format(_selectedDateRange!.start)} - ${DateFormat('dd MMM').format(_selectedDateRange!.end)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    child: child!,
-                  );
-                },
-              );
-              if (range != null) setState(() => _selectedDateRange = range);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFF6F91).withOpacity(0.1)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.date_range_rounded, size: 18, color: Color(0xFFFF6F91)),
-                  const SizedBox(width: 10),
-                  Text(
-                    _selectedDateRange == null 
-                      ? 'Pilih Rentang Waktu' 
-                      : '${DateFormat('dd/MM').format(_selectedDateRange!.start)} - ${DateFormat('dd/MM').format(_selectedDateRange!.end)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: () => setState(() {
-            _selectedDateRange = null;
-            _selectedMonth = null;
-          }),
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF6F91).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+        const SizedBox(width: 12),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => setState(() {
+              _selectedDateRange = null;
+              _selectedMonth = null;
+            }),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFF6F91).withOpacity(0.15), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6F91).withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xFFFF6F91)),
             ),
-            child: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xFFFF6F91)),
           ),
         ),
       ],
@@ -488,5 +555,35 @@ class _AllAttendancePageState extends ConsumerState<AllAttendancePage> {
         ),
       ),
     );
+  }
+}
+
+class _StickyFilterDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _StickyFilterDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_StickyFilterDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }
