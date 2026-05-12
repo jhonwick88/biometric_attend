@@ -72,7 +72,7 @@ class AuthController extends AsyncNotifier<void> {
       
       final isAvailable = await biometricService.isBiometricAvailable();
       if (!isAvailable) {
-        throw Exception('Biometrik tidak tersedia di perangkat ini.');
+        throw Exception('Keamanan perangkat (Biometrik/PIN/Pola) tidak tersedia atau belum diatur.');
       }
 
       final credentials = await biometricService.getCredentials();

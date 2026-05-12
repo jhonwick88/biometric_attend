@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/config_model.dart';
 import '../repositories/config_repository.dart';
+import 'auth_viewmodel.dart';
 
 final configRepositoryProvider = Provider<ConfigRepository>((ref) => ConfigRepository());
 

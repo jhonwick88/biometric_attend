@@ -3,16 +3,25 @@ import '../models/user_model.dart';
 import '../models/attendance_model.dart';
 import '../repositories/admin_repository.dart';
 import 'attendance_viewmodel.dart'; // Import to get attendanceRepositoryProvider
+import 'auth_viewmodel.dart'; // Import to check auth state
 
 final adminRepositoryProvider = Provider<AdminRepository>((ref) => AdminRepository());
 
 // Watch all users for CRUD
 final allUsersProvider = StreamProvider<List<UserModel>>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) {
+    return Stream.value([]);
+  }
   return ref.watch(adminRepositoryProvider).watchAllUsers();
 });
 
 // Watch all attendance for history
 final allAttendanceProvider = StreamProvider<List<AttendanceModel>>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) {
+    return Stream.value([]);
+  }
   return ref.watch(attendanceRepositoryProvider).getAllAttendanceHistory();
 });
 

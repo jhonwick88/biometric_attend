@@ -26,11 +26,11 @@ class BiometricService {
   Future<bool> authenticate() async {
     try {
       final bool didAuthenticate = await _localAuth.authenticate(
-        localizedReason: 'Gunakan sidik jari atau wajah untuk login',
+        localizedReason: 'Gunakan sidik jari, PIN, atau Pola perangkat untuk melanjutkan',
       );
       return didAuthenticate;
     } catch (e) {
-      return false;
+      throw Exception('Gagal melakukan verifikasi keamanan: $e');
     }
   }
 

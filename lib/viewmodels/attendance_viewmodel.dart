@@ -39,7 +39,7 @@ class AttendanceController extends AsyncNotifier<void> {
       // 2. Validate Biometric
       final bioService = ref.read(biometricServiceProvider);
       bool authResult = await bioService.authenticate();
-      if (!authResult) throw "Validasi biometrik gagal / dibatalkan";
+      if (!authResult) throw "Validasi keamanan (Biometrik/PIN) dibatalkan atau gagal";
 
       // 3. Validate Location
       final locService = ref.read(locationServiceProvider);
@@ -82,7 +82,7 @@ class AttendanceController extends AsyncNotifier<void> {
       // 3. Validate Biometric
       final bioService = ref.read(biometricServiceProvider);
       bool authResult = await bioService.authenticate();
-      if (!authResult) throw "Validasi biometrik gagal / dibatalkan";
+      if (!authResult) throw "Validasi keamanan (Biometrik/PIN) dibatalkan atau gagal";
 
       // 4. Validate Location
       final locService = ref.read(locationServiceProvider);
